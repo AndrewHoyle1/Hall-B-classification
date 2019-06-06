@@ -23,14 +23,14 @@ pos_test = []#empty list for positive test set
 pos_train = []#empty list for positive training set
 
 for i in range(len(neg_data)):#itterates through the indexes of the neg_data list
-    if i <= len(neg_data)*8//10:#sorts into training and testing lists based on which index it is
+    if i <= len(neg_data)*7.5//10:#sorts into training and testing lists based on which index it is
         neg_train.append(neg_data[i])#the if statement is written to have a roughly 80/20 split between the size of the sets
-    elif i > len(neg_data)*8//10:
+    elif i > len(neg_data)*7.5//10:
         neg_test.append(neg_data[i])
 for i in range(len(pos_data)):#performs the same operations as the above loop for the positive data
-    if i <= len(pos_data)*8//10:
+    if i <= len(pos_data)*7.5//10:
         pos_train.append(pos_data[i])
-    elif i > len(pos_data)*8//10:
+    elif i > len(pos_data)*7.5//10:
         pos_test.append(pos_data[i])
 
 f1 = h5py.File('Train_set')#makes a file for the training set
