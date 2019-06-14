@@ -1,7 +1,11 @@
 import h5py
 import numpy as np
-import sklearn as sk
+from sklearn import model_selection
+import sklearn
 import tensorflow as tf
+import PIL
+import glob
+from matplotlib import pyplot as plt
 
 f = h5py.File('Train_set', 'r')#opens our training set file to be read
 
@@ -13,28 +17,55 @@ p_labels = np.ones(len(d2))#makes an array of labels for the positive data
 all_data = np.concatenate((d1,d2))#combines negative and positive arrays into one
 all_labels = np.concatenate((n_labels,p_labels))#combines label arrays into one
 
-all_data, all_labels = sk.utils.shuffle(all_data, all_labels, random_state = 0)#shuffles both arrays in parallel
+all_data, all_labels = sklearn.utils.shuffle(all_data, all_labels, random_state = 0)#shuffles both arrays in parallel
 all_data = np.float32(all_data)#changes dtype to preferred float32
 all_labels = np.float32(all_labels)
-d_set = tf.data.Dataset.from_tensor_slices(all_data)#establishes tensorflow datasets from lists we have
-l_set = tf.data.Dataset.from_tensor_slices(all_labels)
-batched_set = d_set.batch(32)#chunks dataset into batches of size 32
-batched_labels = l_set.batch(32)
-Img_shape = (112,112,3)#image resolution
-base_model = tf.keras.applications.vgg16.VGG16(input_shape = Img_shape, include_top = False, weights = 'imagenet')#establishes model
-base_model.trainable = False#freezes base model
-with h5py.File('data_vectors') as f1:#opens new file
-    feature_list = []
-    label_list = []
-    for data, label in zip(batched_set,batched_labels):#iterates through data and labels and runs them through the model to generate the vector
-        feature_batch = base_model(data)
-        global_aveerage_layer = tf.keras.layers.GlobalAveragePooling2D()
-        feature_batch_average = global_aveerage_layer(feature_batch)
-        feature_list.append(feature_batch_average)#adds batch of vectors to list
-        label_list.append(label)
-    feature_list = np.array(feature_list)#sets list as array
-    feature_array = np.concatenate(feature_list)#reshapes our list to how we want it
-    label_list = np.array(label_list)
-    label_array = np.concatenate(label_list)
-    dset_d = f1.create_dataset('vectors', data = feature_array)#sends datasets to file
-    dset_l = f1.create_dataset('labels', data = label_array)
+t_d, v_d, t_l, v_l = sklearn.model_selection.train_test_split(all_data, all_labels, test_size = 0.25)
+batch_size = 32
+t_d = tf.data.Dataset.from_tensor_slices((t_d,t_l)).shuffle(buffer_size = 1000).batch(batch_size)
+v_d = tf.data.Dataset.from_tensor_slices((v_d,v_l)).batch(batch_size)
+
+IMG_SHAPE = (112,112,3)
+
+base_model = tf.keras.applications.vgg16.VGG16(input_shape = IMG_SHAPE, include_top = False, weights = 'imagenet')
+base_model.trainable = False
+global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
+prediction_layer = tf.keras.layers.Dense(1)
+model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])
+base_learning_rate = 0.00008
+model.compile(optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate), loss = 'binary_crossentropy', metrics = ['accuracy'])
+
+print(base_model.summary())
+
+initial_epochs = 10
+steps_per_epoch = 32
+validation_steps = 20
+
+history = model.fit(t_d, epochs = initial_epochs, validation_data = v_d)
+
+results = model.evaluate(v_d)
+
+acc = history.history['accuracy']
+val_acc = history.history['val_accuracy']
+
+loss = history.history['loss']
+val_loss = history.history['val_loss']
+
+plt.figure(figsize = (8,8))
+plt.subplot(2,1,1)
+plt.plot(acc, label = 'Training Accuracy')
+plt.plot(val_acc, label = 'Validation Accuracy')
+plt.legend(loc = 'lower right')
+plt.ylabel('Accuracy')
+plt.ylim([min(plt.ylim()),1])
+plt.title('Training and Validation Accuracy')
+
+plt.subplot(2,1,2)
+plt.plot(loss, label = 'Training Loss')
+plt.plot(val_loss, label = 'Validation Loss')
+plt.legend(loc = 'upper right')
+plt.ylabel('Cross Entropy')
+plt.ylim([0,10])
+plt.title('Training and Validation Loss')
+plt.xlabel('epoch')
+plt.savefig('loss_accuracy_graph')
