@@ -20,36 +20,41 @@ all_labels = np.concatenate((n_labels,p_labels))#combines label arrays into one
 all_data, all_labels = sklearn.utils.shuffle(all_data, all_labels, random_state = 0)#shuffles both arrays in parallel
 all_data = np.float32(all_data)#changes dtype to preferred float32
 all_labels = np.float32(all_labels)
-t_d, v_d, t_l, v_l = sklearn.model_selection.train_test_split(all_data, all_labels, test_size = 0.25)
+t_d, v_d, t_l, v_l = sklearn.model_selection.train_test_split(all_data, all_labels, test_size = 0.25)#splits data and labels into training and validation sets
 batch_size = 32
-t_d = tf.data.Dataset.from_tensor_slices((t_d,t_l)).shuffle(buffer_size = 1000).batch(batch_size)
-v_d = tf.data.Dataset.from_tensor_slices((v_d,v_l)).batch(batch_size)
+t_d = tf.data.Dataset.from_tensor_slices((t_d,t_l)).shuffle(buffer_size = 1000).batch(batch_size)#training data dataset
+v_d = tf.data.Dataset.from_tensor_slices((v_d,v_l)).batch(batch_size)#validation data dataset
 
 IMG_SHAPE = (112,112,3)
 
-base_model = tf.keras.applications.vgg16.VGG16(input_shape = IMG_SHAPE, include_top = False, weights = 'imagenet')
-base_model.trainable = False
+base_model = tf.keras.applications.vgg16.VGG16(input_shape = IMG_SHAPE, include_top = False, weights = 'imagenet')#establish base model
+base_model.trainable = False#freeze model
 global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
 prediction_layer = tf.keras.layers.Dense(1)
-model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])
-base_learning_rate = 0.00008
-model.compile(optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate), loss = 'binary_crossentropy', metrics = ['accuracy'])
-
-print(base_model.summary())
+model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])#add new layers onto base_model
+base_learning_rate = 0.00008#base learning rate
+model.compile(optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate), loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
 
 initial_epochs = 10
-steps_per_epoch = 32
-validation_steps = 20
 
-history = model.fit(t_d, epochs = initial_epochs, validation_data = v_d)
+history = model.fit(t_d, epochs = initial_epochs, validation_data = v_d)#trains model for 10 epochs
 
-results = model.evaluate(v_d)
+base_model.trainable = True#unfreezes model
 
-acc = history.history['accuracy']
-val_acc = history.history['val_accuracy']
+fine_tune_at = 8
 
-loss = history.history['loss']
-val_loss = history.history['val_loss']
+for layer in base_model.layers[fine_tune_at:]:#freezes certain layers of base model
+    layer.trainable = False
+
+model.compile(loss = 'binary_crossentropy', optimizer = tf.keras.optimizers.Adam(lr=2e-5), metrics = ['accuracy'])#compiles new model
+
+history_fine = model.fit(t_d, epochs = 20, initial_epoch = initial_epochs, validation_data = v_d)#trains for 10 more epochs
+
+acc = history_fine.history['accuracy']#plots accuracy and loss over each epoch
+val_acc = history_fine.history['val_accuracy']
+
+loss = history_fine.history['loss']
+val_loss = history_fine.history['val_loss']
 
 plt.figure(figsize = (8,8))
 plt.subplot(2,1,1)
@@ -57,7 +62,7 @@ plt.plot(acc, label = 'Training Accuracy')
 plt.plot(val_acc, label = 'Validation Accuracy')
 plt.legend(loc = 'lower right')
 plt.ylabel('Accuracy')
-plt.ylim([min(plt.ylim()),1])
+plt.ylim([0,1])
 plt.title('Training and Validation Accuracy')
 
 plt.subplot(2,1,2)
@@ -65,7 +70,7 @@ plt.plot(loss, label = 'Training Loss')
 plt.plot(val_loss, label = 'Validation Loss')
 plt.legend(loc = 'upper right')
 plt.ylabel('Cross Entropy')
-plt.ylim([0,10])
+plt.ylim([0,7.0])
 plt.title('Training and Validation Loss')
 plt.xlabel('epoch')
 plt.savefig('loss_accuracy_graph')
