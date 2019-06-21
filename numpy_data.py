@@ -1,5 +1,4 @@
 import h5py
-from matplotlib import image
 import glob
 import  numpy as np
 from PIL import Image, ImageOps
@@ -19,7 +18,7 @@ for filename in glob.iglob("/home/anhoyle/Hall_b/dctrack_pos/*"):#iterates throu
     img = Image.open(filename)
     border = (0,38)
     new_img = ImageOps.expand(img,border = border)
-    data = np.asarray(filename)
+    data = np.asarray(new_img)
     data_pos.append(data)#converts pixel data to numpy arrays and stores them into the data_pos list
 dset1 = f.create_dataset('neg', data = data_neg)#stores numpy data into a dataset
-dset2 = f.create_dataset('pos', data = data_neg)#stores numpy data into a dataset
+dset2 = f.create_dataset('pos', data = data_pos)#stores numpy data into a dataset

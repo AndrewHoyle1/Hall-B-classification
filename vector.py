@@ -32,26 +32,15 @@ base_model.trainable = False#freeze model
 global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
 prediction_layer = tf.keras.layers.Dense(1)
 model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])#add new layers onto base_model
-base_learning_rate = 0.00008#base learning rate
+base_learning_rate = 2e-5#base learning rate
 model.compile(optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate), loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
 
 initial_epochs = 10
 
 history = model.fit(t_d, epochs = initial_epochs, validation_data = v_d)#trains model for 10 epochs
 
-base_model.trainable = True#unfreezes model
-
-fine_tune_at = 8
-
-for layer in base_model.layers[fine_tune_at:]:#freezes certain layers of base model
-    layer.trainable = False
-
-model.compile(loss = 'binary_crossentropy', optimizer = tf.keras.optimizers.Adam(lr=2e-5), metrics = ['accuracy'])#compiles new model
-
-history_fine = model.fit(t_d, epochs = 20, initial_epoch = initial_epochs, validation_data = v_d)#trains for 10 more epochs
-
-acc = history_fine.history['accuracy']#plots accuracy and loss over each epoch
-val_acc = history_fine.history['val_accuracy']
+acc = history.history['accuracy']#plots accuracy and loss over each epoch
+val_acc = history.history['val_accuracy']
 
 loss = history_fine.history['loss']
 val_loss = history_fine.history['val_loss']
