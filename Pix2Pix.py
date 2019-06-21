@@ -11,13 +11,13 @@ from IPython.display import clear_output
 
 Event = []#empty list where negative data will go
 Track = []#empty list where positive data will go
-for filename in sorted(glob.iglob("/home/anhoyle/Hall_b/Event/*")):#iterates through negative files
+for filename in sorted(glob.iglob("/home/hoyle/Hall_b/Event/*")):#iterates through negative files
     img = Image.open(filename)
     border = (0,38)
     new_img = ImageOps.expand(img,border = border)
     data = np.asarray(new_img)
     Event.append(data)#converts pixel data to numpy arrays and stores them into the list
-for filename in sorted(glob.iglob("/home/anhoyle/Hall_b/Track/*")):#iterates through positive files
+for filename in sorted(glob.iglob("/home/hoyle/Hall_b/Track/*")):#iterates through positive files
     img = Image.open(filename)
     border = (0,38)
     new_img = ImageOps.expand(img,border = border)
@@ -179,7 +179,7 @@ def generate_images(model, test_input, tar):
 
         plt.imshow(display_list[i] * 0.5 + 0.5)
         plt.axis('off')
-    plt.show()
+    plt.savefig('testing_attempt.png')
 
 @tf.function
 def train_step(input_image, target):
@@ -206,12 +206,15 @@ def train(dataset, epochs):
             train_step(input_image, target)
 
         clear_output(wait = True)
-        for inp, tar in test_dataset.take(1):
-            generate_images(generator, inp, tar)
 
-        if (epoch + 1) % 20 == 0:
+        if (epoch + 1) % 10 == 0:
             checkpoint.save(file_prefix = checkpoint_prefix)
 
-        print('Time takne for epoch {} is {} sec\n' .format(epoch + 1, time.time()-start))
+        print('Time taken for epoch {} is {} sec\n' .format(epoch + 1, time.time()-start))
 
 train(train_dataset, EPOCHS)
+
+#checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+
+#for inp, tar in test_dataset.take(5):
+    #generate_images(generator, inp, tar)
