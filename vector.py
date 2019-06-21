@@ -28,22 +28,22 @@ v_d = tf.data.Dataset.from_tensor_slices((v_d,v_l)).batch(batch_size)#validation
 IMG_SHAPE = (112,112,3)
 
 base_model = tf.keras.applications.vgg16.VGG16(input_shape = IMG_SHAPE, include_top = False, weights = 'imagenet')#establish base model
-base_model.trainable = False#freeze model
+base_model.trainable = True#freeze model
 global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
 prediction_layer = tf.keras.layers.Dense(1)
 model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])#add new layers onto base_model
-base_learning_rate = 2e-5#base learning rate
+base_learning_rate = 2e-6#base learning rate
 model.compile(optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate), loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
 
-initial_epochs = 10
+initial_epochs = 15
 
 history = model.fit(t_d, epochs = initial_epochs, validation_data = v_d)#trains model for 10 epochs
 
 acc = history.history['accuracy']#plots accuracy and loss over each epoch
 val_acc = history.history['val_accuracy']
 
-loss = history_fine.history['loss']
-val_loss = history_fine.history['val_loss']
+loss = history.history['loss']
+val_loss = history.history['val_loss']
 
 plt.figure(figsize = (8,8))
 plt.subplot(2,1,1)
