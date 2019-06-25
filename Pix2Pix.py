@@ -116,11 +116,11 @@ def Discriminator():
 
     x = tf.keras.layers.concatenate([inp, tar])
 
-    down1 = downsample(64,4,False)(x)
-    down2 = downsample(128, 4)(down1)
-    down3 = downsample(256, 4)(down2)
+    #down1 = downsample(64,4,False)(x)
+    #down2 = downsample(128, 4)(down1)
+    #down3 = downsample(256, 4)(down2)
 
-    zero_pad1 = tf.keras.layers.ZeroPadding2D()(down3)
+    zero_pad1 = tf.keras.layers.ZeroPadding2D()(x)
     conv = tf.keras.layers.Conv2D(512,4,strides = 1, kernel_initializer = initializer, use_bias = False)(zero_pad1)
 
     batchnorm1 = tf.keras.layers.BatchNormalization()(conv)
@@ -160,7 +160,7 @@ def generator_loss(disc_generated_output, gen_output, target):
 generator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1 = 0.5)
 discriminator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1 = 0.5)
 
-checkpoint_dir = './training_checkpoints'
+checkpoint_dir = './Pix2Pix_training_checkpoints'
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
 checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer, discriminator_optimizer= discriminator_optimizer, generator = generator, discriminator = discriminator)
 
@@ -179,7 +179,7 @@ def generate_images(model, test_input, tar):
 
         plt.imshow(display_list[i] * 0.5 + 0.5)
         plt.axis('off')
-    plt.savefig('testing_attempt.png')
+    plt.savefig('testing_attempt_4.png')
 
 @tf.function
 def train_step(input_image, target):
@@ -212,9 +212,9 @@ def train(dataset, epochs):
 
         print('Time taken for epoch {} is {} sec\n' .format(epoch + 1, time.time()-start))
 
-train(train_dataset, EPOCHS)
+#train(train_dataset, EPOCHS)
 
-#checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
 
-#for inp, tar in test_dataset.take(5):
-    #generate_images(generator, inp, tar)
+for inp, tar in test_dataset.take(4):
+    generate_images(generator, inp, tar)
