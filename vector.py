@@ -29,15 +29,15 @@ IMG_SHAPE = (112,112,3)
 
 base_model = tf.keras.applications.vgg16.VGG16(input_shape = IMG_SHAPE, include_top = False, weights = 'imagenet')#establish base model
 base_model.trainable = True#freeze model
-global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
-prediction_layer = tf.keras.layers.Dense(1)
+global_average_layer = tf.keras.layers.GlobalAveragePooling2D()#tacks on new global pooling layer
+prediction_layer = tf.keras.layers.Dense(1)#adds a prediction layer to our model
 model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])#add new layers onto base_model
 base_learning_rate = 2e-6#base learning rate
 model.compile(optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate), loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
 
-initial_epochs = 15
+initial_epochs = 20#number of epochs
 
-history = model.fit(t_d, epochs = initial_epochs, validation_data = v_d)#trains model for 10 epochs
+history = model.fit(t_d, epochs = initial_epochs, validation_data = v_d)#trains model for 20 epochs
 
 acc = history.history['accuracy']#plots accuracy and loss over each epoch
 val_acc = history.history['val_accuracy']

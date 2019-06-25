@@ -7,7 +7,7 @@ from sklearn.ensemble import RandomForestClassifier
 import seaborn as sns
 from matplotlib import pyplot as plt
 
-f = h5py.File('data_vectors', 'r')#opens file
+f = h5py.File('vector_data', 'r')#opens file
 
 dset_d = f.get('vectors')#gets vector data
 dset_l = f.get('labels')#gets label data
@@ -25,17 +25,17 @@ min_max_scaler = sklearn.preprocessing.MinMaxScaler()
 data_min_max = min_max_scaler.fit(dataset)
 data_min_max = min_max_scaler.transform(dataset)
 
-"""data_2d = tsne.fit_transform(data_min_max[:1000])
+data_2d = tsne.fit_transform(data_min_max[:10000])
 
 data_one = data_2d[:,0]
 data_two = data_2d[:,1]
 
 plt.figure(figsize = (3,3))
-sns.scatterplot(x = data_one, y = data_two, hue = labels[:1000], palette = sns.color_palette("hls", 2))
-plt.show()"""
+sns.scatterplot(x = data_one, y = data_two, hue = labels[:10000], palette = sns.color_palette("hls", 2))
+plt.show()
 
 
-training_d, validation_d, training_l, validation_l = sklearn.model_selection.train_test_split(data_min_max, labels, test_size = 0.25)#splits data into training and validation sets
+training_d, validation_d, training_l, validation_l = sklearn.model_selection.train_test_split(data_min_max, labels, test_size = 0.25, shuffle = False)#splits data into training and validation sets
 
 #rf = LogisticRegression()#calls logistic regression algorithm from scikit learn
 rf = RandomForestClassifier(n_estimators = 100)
