@@ -44,9 +44,9 @@ model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['a
 
 
 
-initial_epochs = 2
+initial_epochs = 1
 
-checkpoint_path= "C:/Users/Setup/Desktop/Hall_b/Vgg16_checkpoints/cp-{epoch:04d}.ckpt"
+checkpoint_path= "./Vgg16_checkpoints/cp-{epoch:04d}.ckpt"
 #checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
 checkpoint_dir = os.path.dirname(checkpoint_path)
  
