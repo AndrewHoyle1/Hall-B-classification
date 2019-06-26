@@ -1,7 +1,5 @@
 import h5py
-import glob
 import tensorflow as tf
-from PIL import Image, ImageOps
 import matplotlib.pyplot as plt
 import numpy as np
 from sklearn import model_selection, utils
@@ -9,95 +7,83 @@ import os
 import time
 from IPython.display import clear_output
 
-Event = []#empty list where negative data will go
-Track = []#empty list where positive data will go
-for filename in sorted(glob.iglob("/home/hoyle/Hall_b/Event/*")):#iterates through negative files
-    img = Image.open(filename)
-    border = (0,38)
-    new_img = ImageOps.expand(img,border = border)
-    data = np.asarray(new_img)
-    Event.append(data)#converts pixel data to numpy arrays and stores them into the list
-for filename in sorted(glob.iglob("/home/hoyle/Hall_b/Track/*")):#iterates through positive files
-    img = Image.open(filename)
-    border = (0,38)
-    new_img = ImageOps.expand(img,border = border)
-    data = np.asarray(new_img)
-    Track.append(data)#converts pixel data to numpy arrays and stores them into the list
+f = h5py.File('Pix2Pix_data', 'r')
+Event = f.get('event')
+Track = f.get('track')
 
 BUFFER_SIZE = 400
 BATCH_SIZE = 1
 
-event, track = utils.shuffle(Event, Track, random_state = 0)
-event = np.float32(event)
-track = np.float32(track)
-event_train, event_test, track_train, track_test = model_selection.train_test_split(event, track, test_size = 0.25, shuffle = False)
+event, track = utils.shuffle(Event, Track, random_state = 0)#shuffles event and track data in unison
+event = np.float32(event)#converts event data to float32
+track = np.float32(track)#converts track data to float32
+event_train, event_test, track_train, track_test = model_selection.train_test_split(event, track, test_size = 0.25, shuffle = False)#splits into training and testing sets
 
-train_dataset = tf.data.Dataset.from_tensor_slices((event_train,track_train)).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)
-test_dataset = tf.data.Dataset.from_tensor_slices((event_test, track_test)).shuffle(BATCH_SIZE).batch(BATCH_SIZE)
+train_dataset = tf.data.Dataset.from_tensor_slices((event_train,track_train)).shuffle(BUFFER_SIZE).batch(BATCH_SIZE)#creates tensorflow training dataset
+test_dataset = tf.data.Dataset.from_tensor_slices((event_test, track_test)).shuffle(BATCH_SIZE).batch(BATCH_SIZE)#creates tensorflow testing dataset
 
-OUTPUT_CHANNELS = 3
+OUTPUT_CHANNELS = 3#number of output channels for our images
 
-def downsample(filters, size, apply_batchnorm = True):
-    initializer = tf.random_normal_initializer(0., 0.02)
+def downsample(filters, size, apply_batchnorm = True):#downsamples images by a factor of 2
+    initializer = tf.random_normal_initializer(0., 0.02)#instantiates an initializer
 
-    result = tf.keras.Sequential()
-    result.add(tf.keras.layers.Conv2D(filters, size, strides = 2, padding = 'same', kernel_initializer= initializer, use_bias = False))
-
-    if apply_batchnorm:
+    result = tf.keras.Sequential()#establishes sequential model where our new layers will go
+    result.add(tf.keras.layers.Conv2D(filters, size, strides = 2, padding = 'same', kernel_initializer= initializer, use_bias = False))#makes convolutional layers with a depth of the number of filters, and a size of half the previous layer
+    # the new layers are downsized by a factor of two since our stride is two but our padding is same
+    if apply_batchnorm:#applies batch normalization when needed
         result.add(tf.keras.layers.BatchNormalization())
 
-    result.add(tf.keras.layers.LeakyReLU())
-
+    result.add(tf.keras.layers.LeakyReLU())#applies LeakyReLU activiation
     return result
 
 down_model = downsample(3,4)
 
-def upsample(filters, size, apply_dropout = False):
-    initializer = tf.random_normal_initializer(0., 0.02)
+def upsample(filters, size, apply_dropout = False):#upsamples images by a factor of 2
+    initializer = tf.random_normal_initializer(0., 0.02)#initializer
 
-    result = tf.keras.Sequential()
-    result.add(tf.keras.layers.Conv2DTranspose(filters, size, strides = 2, padding = 'same', kernel_initializer = initializer, use_bias = False))
+    result = tf.keras.Sequential()#sequential model for new layers
+    result.add(tf.keras.layers.Conv2DTranspose(filters, size, strides = 2, padding = 'same', kernel_initializer = initializer, use_bias = False))#convolutional transpose layer where we upsize
 
-    result.add(tf.keras.layers.BatchNormalization())
+    result.add(tf.keras.layers.BatchNormalization())#batch normalization
 
-    if apply_dropout:
+    if apply_dropout:#applies dropout when instructed (dropout essentially selects random neurons to ignore when training)
         result.add(tf.keras.layers.Dropout(0.5))
 
-    result.add(tf.keras.layers.ReLU())
+    result.add(tf.keras.layers.ReLU())#applies ReLU
 
     return result
 
 up_model = upsample(3,4)
 
-def Generator():
+def Generator():#generates our images from our input images
     down_stack = [
-        downsample(64,4,apply_batchnorm=False),# 56,56,64
-        downsample(128,4),# 28,28,128
-        downsample(256,4),# 14, 14, 256
-        downsample(512,4),# 7,7, 512
+        downsample(64,4,apply_batchnorm=False),# layers of size (bs, 56, 56, 64)
+        downsample(128,4),# (bs, 28,28, 128)
+        downsample(256,4),# (bs, 14, 14, 256)
+        downsample(512,4),# (bs, 7, 7, 512)
     ]
 
     up_stack = [
-        upsample(256, 4, apply_dropout = True),
-        upsample(128,4),
-        upsample(64, 4),
+        upsample(512, 4, apply_dropout = True),# (bs, 14, 14, 1024)
+        upsample(256,4),# (bs, 28, 28, 512)
+        upsample(128, 4),# (bs, 56, 56, 256)
     ]
 
     initializer = tf.random_normal_initializer(0.,0.02)
-    last = tf.keras.layers.Conv2DTranspose(OUTPUT_CHANNELS, 4, strides = 2, padding = 'same', kernel_initializer = initializer, activation = 'tanh')
+    last = tf.keras.layers.Conv2DTranspose(OUTPUT_CHANNELS, 4, strides = 2, padding = 'same', kernel_initializer = initializer, activation = 'tanh')# (bs, 112, 112, 3)
 
     concat = tf.keras.layers.Concatenate()
 
     inputs = tf.keras.layers.Input(shape = [None, None, 3])
     x = inputs
-
+    # downsampling through the model
     skips = []
     for down in down_stack:
         x = down(x)
         skips.append(x)
 
     skips = reversed(skips[:-1])
-
+    # upsampling and establishing the skip connections
     for up, skip in zip(up_stack, skips):
         x = up(x)
         x = concat([x,skip])
@@ -111,16 +97,16 @@ generator = Generator()
 def Discriminator():
     initializer = tf.random_normal_initializer(0., 0.02)
 
-    inp = tf.keras.layers.Input(shape = [None, None, 3], name = 'input_image')
-    tar  = tf. keras.layers.Input(shape = [None, None, 3], name = 'target_image')
+    inp = tf.keras.layers.Input(shape = [None, None, 3], name = 'input_image')#where we will assign our input image
+    tar  = tf. keras.layers.Input(shape = [None, None, 3], name = 'target_image')#where we will assign our target image
 
     x = tf.keras.layers.concatenate([inp, tar])
 
-    #down1 = downsample(64,4,False)(x)
+    down1 = downsample(64,4,False)(x)#downsamples once for patchGAN
     #down2 = downsample(128, 4)(down1)
     #down3 = downsample(256, 4)(down2)
 
-    zero_pad1 = tf.keras.layers.ZeroPadding2D()(x)
+    zero_pad1 = tf.keras.layers.ZeroPadding2D()(down1)#zero pads for convolutional layer
     conv = tf.keras.layers.Conv2D(512,4,strides = 1, kernel_initializer = initializer, use_bias = False)(zero_pad1)
 
     batchnorm1 = tf.keras.layers.BatchNormalization()(conv)
@@ -160,7 +146,7 @@ def generator_loss(disc_generated_output, gen_output, target):
 generator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1 = 0.5)
 discriminator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1 = 0.5)
 
-checkpoint_dir = './Pix2Pix_training_checkpoints'
+checkpoint_dir = './training_checkpoints'
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")
 checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer, discriminator_optimizer= discriminator_optimizer, generator = generator, discriminator = discriminator)
 
@@ -172,14 +158,13 @@ def generate_images(model, test_input, tar):
 
     display_list = [test_input[0], tar[0], prediction[0]]
     title = ['Input Image', 'Ground Truth', 'Predicted Image']
-
     for i in range(3):
-        plt.subplot(1,3, i+1)
+        plt.subplot(j+1,3,i+1)
         plt.title(title[i])
 
-        plt.imshow(display_list[i] * 0.5 + 0.5)
+        plt.imshow(display_list[i])
         plt.axis('off')
-    plt.savefig('testing_attempt_4.png')
+    plt.savefig('testing_attempt.png')
 
 @tf.function
 def train_step(input_image, target):
@@ -212,9 +197,6 @@ def train(dataset, epochs):
 
         print('Time taken for epoch {} is {} sec\n' .format(epoch + 1, time.time()-start))
 
-#train(train_dataset, EPOCHS)
+train(train_dataset, EPOCHS)
 
-checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
-
-for inp, tar in test_dataset.take(4):
-    generate_images(generator, inp, tar)
+#checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
