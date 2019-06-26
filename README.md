@@ -1,8 +1,7 @@
 # Hall-B-classification
-Classifies image data to detect real and simulated image data
+##Classifies image data to detect real and simulated image data
 
-The order of the scripts is as follows:
-  1)numpy_data.py (converts images to numpy arrays)
-  2)data_organizer.py (shuffles data and organizes it into testing and training sets)
-  3)vector.py (runs the data through a pretrained CNN to generate vectors for each image)
-  4)log_reg.py (uses a Logistic Regression algorithm to classify the vectors made by the previous script)
+  1.*vector_2.py* (This is a implementation of the regular vector.py file with dfferenet paraemeter.Overall it was fruitless)
+  2.*vector_3.py* (This was a scratch made vgg-16 CNN that had up to two maxpooling layers, results proves about the same as the        
+                  regular vecor.py)
+  3.*vector_4.py* (this is a modify version of the original vector file where it crates a checkpoint per epoch)
