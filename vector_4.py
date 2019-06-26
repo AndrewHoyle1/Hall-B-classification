@@ -34,25 +34,26 @@ global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
 prediction_layer = tf.keras.layers.Dense(1)
 model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])#add new layers onto base_model
 base_learning_rate = 2e-6#base learning rate
-optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate)
+optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate) #define our optimizer to be ADAM and set our learnitn rate
 
 
-
+initial_epochs = 1  #the number of iterations 
 
 
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
 
 
 
-initial_epochs = 1
 
-checkpoint_path= "./Vgg16_checkpoints/cp-{epoch:04d}.ckpt"
+
+checkpoint_path= "./Vgg16_checkpoints/cp-{epoch:04d}.ckpt"  #Defines where to create the file to put our checkpoints in.
 #checkpoint_prefix = os.path.join(checkpoint_directory, "ckpt")
-checkpoint_dir = os.path.dirname(checkpoint_path)
+checkpoint_dir = os.path.dirname(checkpoint_path)           #
  
-cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
-                                                 save_weights_only=True,
-                                                 verbose=1,period=1)
+cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, # Tells our callback where to put each checkpoint per iteration/epoch
+                                                 save_weights_only=True, #this saves our weights from each iteration/epoch
+                                                 verbose=1, #Sets the verbosity
+                                                 period=1) #This tells how many epochs
 
 
 #checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model) 
@@ -62,7 +63,7 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path,
 #checkpoint.save(file_prefix=checkpoint_prefix)
 
 
-history = model.fit(t_d, epochs = initial_epochs,callbacks = [cp_callback],validation_data = v_d)#trains model for 15 epochs
+history = model.fit(t_d, epochs = initial_epochs,callbacks = [cp_callback],validation_data = v_d)#trains model dependent on the epochs wanted
 
 
 
