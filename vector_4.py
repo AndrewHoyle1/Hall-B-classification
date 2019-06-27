@@ -26,10 +26,13 @@ batch_size = 32
 t_d = tf.data.Dataset.from_tensor_slices((t_d,t_l)).shuffle(buffer_size = 1000).batch(batch_size)#training data dataset
 v_d = tf.data.Dataset.from_tensor_slices((v_d,v_l)).batch(batch_size)#validation data dataset
 
+
+#def create_model():
+
 IMG_SHAPE = (112,112,3)
 
 base_model = tf.keras.applications.vgg16.VGG16(input_shape = IMG_SHAPE, include_top = False, weights = 'imagenet')#establish base model
-base_model.trainable = False#freeze model
+base_model.trainable = True #freeze model
 global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
 prediction_layer = tf.keras.layers.Dense(1)
 model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])#add new layers onto base_model
@@ -37,7 +40,7 @@ base_learning_rate = 2e-6#base learning rate
 optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate) #define our optimizer to be ADAM and set our learnitn rate
 
 
-initial_epochs = 1  #the number of iterations 
+initial_epochs = 25  #the number of iterations 
 
 
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
@@ -67,7 +70,7 @@ history = model.fit(t_d, epochs = initial_epochs,callbacks = [cp_callback],valid
 
 
 
-"""
+
 acc = history.history['accuracy']#plots accuracy and loss over each epoch
 val_acc = history.history['val_accuracy']
 
@@ -92,4 +95,3 @@ plt.ylim([0,7.0])
 plt.title('Training and Validation Loss')
 plt.xlabel('epoch')
 plt.savefig('loss_accuracy_graph')
-"""
