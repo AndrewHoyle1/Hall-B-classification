@@ -9,7 +9,9 @@ from IPython.display import clear_output
 
 f = h5py.File('Pix2Pix_data', 'r')
 Event = f.get('event')
+Event = np.array(Event)
 Track = f.get('track')
+Track = np.array(Track)
 
 BUFFER_SIZE = 400
 BATCH_SIZE = 1
@@ -153,18 +155,25 @@ checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer, disc
 EPOCHS = 150
 
 def generate_images(model, test_input, tar):
-    prediction = model(test_input, training = True)
-    plt.figure(figsize = (15,15))
-
+    # the training=True is intentional here since
+    # we want the batch statistics while running the model
+    # on the test dataset. If we use training=False, we will get
+    # the accumulated statistics learned from the training dataset
+    # (which we don't want)
+    prediction = model(test_input, training=True)
+    plt.figure(figsize=(15,15))
     display_list = [test_input[0], tar[0], prediction[0]]
     title = ['Input Image', 'Ground Truth', 'Predicted Image']
-    for i in range(3):
-        plt.subplot(j+1,3,i+1)
-        plt.title(title[i])
 
+    for i in range(3):
+        plt.subplot(1, 3, i+1)
+        plt.title(title[i])
+        # getting the pixel values between [0, 1] to plot it.
         plt.imshow(display_list[i])
         plt.axis('off')
     plt.savefig('testing_attempt.png')
+
+
 
 @tf.function
 def train_step(input_image, target):
@@ -197,6 +206,23 @@ def train(dataset, epochs):
 
         print('Time taken for epoch {} is {} sec\n' .format(epoch + 1, time.time()-start))
 
-train(train_dataset, EPOCHS)
+#train(train_dataset, EPOCHS)
 
-#checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+
+for inp, tar in test_dataset.take(7):
+    generate_images(generator, inp, tar)
+
+"""plt.figure(figsize = (15,15))
+for j in range(7):
+    test_input = event_test[j]
+    tar = track_test[j]
+    prediction = generator(tf.expand_dims(test_input,0), training = True)
+    display_list = [test_input, tar, prediction[0]]
+    title = ['Input Image', 'Ground Truth', 'Predicted Image']
+    for i in range(3):
+        plt.subplot(j+1,3,i+1)
+        plt.title(title[i])
+        plt.imshow(display_list[i])
+        plt.axis('off')
+plt.savefig('testing_attempt.png')"""
