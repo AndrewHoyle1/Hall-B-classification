@@ -8,6 +8,19 @@ import glob
 from matplotlib import pyplot as plt
 import os
 
+"""models to experiment...
+
+    Resnet
+    Xception
+    InceptionV3
+    VGG19
+    ResNet50
+    MobileNetV2
+
+
+
+"""
+
 f = h5py.File('Train_set', 'r')#opens our training set file to be read
 
 d1 = f.get('neg_train')#unpacks negative training set
@@ -36,11 +49,11 @@ base_model.trainable = True #freeze model
 global_average_layer = tf.keras.layers.GlobalAveragePooling2D()
 prediction_layer = tf.keras.layers.Dense(1)
 model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])#add new layers onto base_model
-base_learning_rate = 2e-6#base learning rate
-optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate) #define our optimizer to be ADAM and set our learnitn rate
+base_learning_rate = 2e-5#base learning rate
+optimizer = tf.keras.optimizers.Nadam(lr = base_learning_rate) #define our optimizer to be ADAM and set our learnitn rate
 
 
-initial_epochs = 25  #the number of iterations 
+initial_epochs = 5  #the number of iterations 
 
 
 model.compile(optimizer = optimizer, loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
@@ -55,9 +68,7 @@ checkpoint_dir = os.path.dirname(checkpoint_path)           #
  
 cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, # Tells our callback where to put each checkpoint per iteration/epoch
                                                  save_weights_only=True, #this saves our weights from each iteration/epoch
-                                                 verbose=1, #Sets the verbosity
-                                                 period=1) #This tells how many epochs
-
+                                                 verbose=1,)#Sets the verbosity
 
 #checkpoint = tf.train.Checkpoint(optimizer=optimizer, model=model) 
 
@@ -65,12 +76,16 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, # Tells our ca
 
 #checkpoint.save(file_prefix=checkpoint_prefix)
 
+model.save_weights(checkpoint_path.format(epoch=0))
 
 history = model.fit(t_d, epochs = initial_epochs,callbacks = [cp_callback],validation_data = v_d)#trains model dependent on the epochs wanted
 
+model.save('./Vgg16.h5')
 
 
 
+
+"""
 acc = history.history['accuracy']#plots accuracy and loss over each epoch
 val_acc = history.history['val_accuracy']
 
@@ -95,3 +110,4 @@ plt.ylim([0,7.0])
 plt.title('Training and Validation Loss')
 plt.xlabel('epoch')
 plt.savefig('loss_accuracy_graph')
+"""
