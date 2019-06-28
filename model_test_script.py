@@ -28,17 +28,7 @@ all_labels = np.concatenate((n_labels,p_labels))#combines label arrays into one
 all_data, all_labels = sklearn.utils.shuffle(all_data, all_labels, random_state = 0)#shuffles both arrays in parallel
 all_data = np.float32(all_data)#changes dtype to preferred float32
 all_labels = np.float32(all_labels)
-testing = tf.data.Dataset.from_tensor_slices((all_data,all_labels)).shuffle(buffer_size=1000).batch(batch_size=1)
-
-
-"""t_d, v_d, t_l, v_l = sklearn.model_selection.train_test_split(all_data, all_labels, test_size = 0.25)#splits data and labels into training and validation sets
-batch_size = 32
-t_d = tf.data.Dataset.from_tensor_slices((t_d,t_l)).shuffle(buffer_size = 1000).batch(batch_size)#training data dataset
-v_d = tf.data.Dataset.from_tensor_slices((v_d,v_l)).batch(batch_size)#validation data dataset"""
-
-
-
-
+#testing = tf.data.Dataset.from_tensor_slices((all_data,all_labels)).shuffle(buffer_size=1000).batch(batch_size=1)
 
 
 
@@ -63,12 +53,10 @@ def create_model():
     return model
 
 
-
-
-
-
-
-
+new_model = keras.models.load_model('my_model.h5')
+new_model.summary()
+loss, acc = new_model.evaluate(all_data, all_labels)
+print("Restored model, accuracy: {:5.2f}%".format(100*acc))   
 
 
 
@@ -80,12 +68,13 @@ checkpoint_dir = os.path.dirname(checkpoint_path)
 latest = tf.train.latest_checkpoint(checkpoint_dir)
 print (latest)
 
+#checkpoint.restore(latest)
+
 model=create_model()
 model.load_weights(latest)
 #model.load_weights(checkpoint_path)
 
-#loss=[]
-#acc=[]
+
 loss,acc = model.evaluate(all_data, all_labels)
     
 print("Restored model, accuracy: {:5.2f}%".format(100*acc))
