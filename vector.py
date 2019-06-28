@@ -34,9 +34,9 @@ global_average_layer = tf.keras.layers.GlobalAveragePooling2D()#tacks on new glo
 prediction_layer = tf.keras.layers.Dense(1)#adds a prediction layer to our model
 model = tf.keras.Sequential([base_model, global_average_layer, prediction_layer])#add new layers onto base_model
 base_learning_rate = 2e-6#base learning rate
-model.compile(optimizer = tf.keras.optimizers.Adam(lr = base_learning_rate), loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
+model.compile(optimizer = tf.keras.optimizers.Nadam(lr = base_learning_rate), loss = 'binary_crossentropy', metrics = ['accuracy'])#compiles model
 
-initial_epochs = 25#number of epochs
+initial_epochs = 20#number of epochs
 
 checkpoint_path= "./Vgg16_checkpoints/cp-{epoch:04d}.ckpt"  #Defines where to create the file to put our checkpoints in.
 checkpoint_dir = os.path.dirname(checkpoint_path)           #
@@ -46,6 +46,8 @@ cp_callback = tf.keras.callbacks.ModelCheckpoint(checkpoint_path, # Tells our ca
                                                  verbose=1) #Sets the verbosity
 
 history = model.fit(t_d, epochs = initial_epochs,callbacks = [cp_callback], validation_data = v_d)#trains model for 20 epochs
+
+model.save('Vgg16.h5')
 
 acc = history.history['accuracy']#plots accuracy and loss over each epoch
 val_acc = history.history['val_accuracy']
