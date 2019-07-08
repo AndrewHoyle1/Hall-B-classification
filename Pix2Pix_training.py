@@ -191,7 +191,7 @@ def generate_images(model1, model2, test_input, tar, number):#will generate our 
 def train_step(input_image, target):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
         gen_output = generator(input_image, training = True)#generates image from input image and trains the generator
-        mse = tf.losses.mean_squared_error(target, gen_output)
+        mse = tf.losses.mean_squared_error(target[0], gen_output[0])
         disc_real_output = discriminator([input_image, target], training = True)#runs the discriminator on the real output
         disc_generated_output = discriminator([input_image, gen_output], training = True)#runs the discriminator on the generated output
         gen_loss = generator_loss(disc_generated_output, gen_output, target)#calculates loss on the generator from the generated discriminator output, the output of the generator, and the target image
@@ -201,7 +201,7 @@ def train_step(input_image, target):
 
     generator_optimizer.apply_gradients(zip(generator_gradients, generator.trainable_variables))#applies gradients to the optimizer and changes variables accordingly
     discriminator_optimizer.apply_gradients(zip(discriminator_gradients, discriminator.trainable_variables))#applies gradients to the optimizer and changes variables accordingly
-    return mse, gen_loss, disc_loss
+    print(mse, gen_loss.shape(), disc_loss.shape())
 
 def train(dataset, epochs):#trains on the training dataset for a set number of epochs
     mse_avg = []
