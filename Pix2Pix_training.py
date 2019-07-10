@@ -123,7 +123,7 @@ def Discriminator():#analyzes our images and evaluates how good they are
 
 discriminator = Discriminator()
 
-LAMBDA = 100#lambda value for L1 loss
+LAMBDA = 10#lambda value for L1 loss
 
 loss_object = tf.keras.losses.BinaryCrossentropy(from_logits = True)
 
@@ -158,7 +158,7 @@ checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")#establishes a prefix fo
 checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer, discriminator_optimizer= discriminator_optimizer, generator = generator, discriminator = discriminator)
 #tells us what we want saved in our checkpoints
 EPOCHS = 150# number of epochs
-mse_list = []
+
 def generate_images(model1, model2, test_input, tar, number):#will generate our images from our test set
     # the training=True is intentional here since
     # we want the batch statistics while running the model
@@ -187,11 +187,22 @@ def generate_images(model1, model2, test_input, tar, number):#will generate our 
     plt.colorbar()
     plt.savefig('testing_attempt' + str(number) + '.png')
 
+"""def clean_img(generated_image):#takes image and puts all values at either 0 or 1
+    img = np.asarray(generated_image)
+    img_size = 112
+    for i in range(0,img_size):
+        for j in range(0,img_size):
+            for k in range(0,3):
+                if img[i,j,k] <= 1e-3:
+                    img[i,j,k] = 0
+    return generated_image"""
+
 @tf.function#function decorator
 def train_step(input_image, target):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
         gen_output = generator(input_image, training = True)#generates image from input image and trains the generator
-        mse = tf.losses.mean_squared_error(target[0], gen_output[0])
+        gen_output1 = clean_img(gen_output)#cleaned image
+        mse = tf.losses.mean_squared_error(target, gen_output)
         disc_real_output = discriminator([input_image, target], training = True)#runs the discriminator on the real output
         disc_generated_output = discriminator([input_image, gen_output], training = True)#runs the discriminator on the generated output
         gen_loss = generator_loss(disc_generated_output, gen_output, target)#calculates loss on the generator from the generated discriminator output, the output of the generator, and the target image
@@ -201,7 +212,7 @@ def train_step(input_image, target):
 
     generator_optimizer.apply_gradients(zip(generator_gradients, generator.trainable_variables))#applies gradients to the optimizer and changes variables accordingly
     discriminator_optimizer.apply_gradients(zip(discriminator_gradients, discriminator.trainable_variables))#applies gradients to the optimizer and changes variables accordingly
-    print(mse, gen_loss.shape(), disc_loss.shape())
+    return mse , gen_loss, disc_loss
 
 def train(dataset, epochs):#trains on the training dataset for a set number of epochs
     mse_avg = []
@@ -209,15 +220,25 @@ def train(dataset, epochs):#trains on the training dataset for a set number of e
     disc_loss_avg = []
     for epoch in range(epochs):#iterates through epochs
         start = time.time()#times each epoch
+        mse_list = []
+        gen_loss_list = []
+        disc_loss_list = []
         for input_image, target in dataset:#iterates through input and expected images
             mse, gen_loss, disc_loss = train_step(input_image, target)#runs the images through train_step function
-            mse_avg.append(mse)
-            gen_loss_avg.append(gen_loss.numpy())
-            disc_loss_avg.append(disc_loss.numpy())
+            mse_list.append(mse.numpy())
+            gen_loss_list.append(gen_loss.numpy())
+            disc_loss_list.append(disc_loss.numpy())
         clear_output(wait = True)#clears outputs
+        mse_avg.append(np.average(mse_list))
+        gen_loss_avg.append(np.average(gen_loss_list))
+        disc_loss_avg.append(np.average(disc_loss_list))
         if (epoch + 1) % 10 == 0:#saves checkpoints every ten epochs
             checkpoint.save(file_prefix = checkpoint_prefix)
         print('Time taken for epoch {} is {} sec\n' .format(epoch + 1, time.time()-start))#prints time taken per epoch
+    return mse_avg, gen_loss_avg, disc_loss_avg
+
+def plot():
+    mse_avg, gen_loss_avg, disc_loss_avg = train(train_dataset, EPOCHS)
     plt.figure(figsize = (8,8))
     plt.subplot(2,1,1)
     plt.plot(gen_loss_avg, label = 'Avg Generator Loss')
@@ -236,7 +257,8 @@ def train(dataset, epochs):#trains on the training dataset for a set number of e
 
     plt.savefig("Pix2Pix_metrics")
 
-train(train_dataset, EPOCHS)#trains Pix2Pix
+plot()
+#train(train_dataset, EPOCHS)#trains Pix2Pix
 
 #checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
 
