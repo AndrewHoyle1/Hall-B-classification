@@ -155,14 +155,14 @@ def generator_loss(disc_generated_output, gen_output, target):#calculates our lo
 
     return total_gen_loss
 
-generator_optimizer = tf.keras.optimizers.Adam(2e-5, beta_1 = 0.5)#optimizer for generator
-discriminator_optimizer = tf.keras.optimizers.Adam(2e-5, beta_1 = 0.5)#optimizer for discriminator
+generator_optimizer = tf.keras.optimizers.Adam(5e-4, beta_1 = 0.5)#optimizer for generator
+discriminator_optimizer = tf.keras.optimizers.Adam(5e-4, beta_1 = 0.5)#optimizer for discriminator
 
 checkpoint_dir = './training_checkpoints'#establishes a checkpoint directory
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")#establishes a prefix for our checkpoints
 checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer, discriminator_optimizer= discriminator_optimizer, generator = generator, discriminator = discriminator)
 #tells us what we want saved in our checkpoints
-EPOCHS = 150# number of epochs
+EPOCHS = 50# number of epochs
 
 def generate_images(model1, model2, test_input, tar, number):#will generate our images from our test set
     # the training=True is intentional here since
@@ -171,13 +171,13 @@ def generate_images(model1, model2, test_input, tar, number):#will generate our 
     # the accumulated statistics learned from the training dataset
     # (which we don't want)
     prediction = model1(test_input, training=True)#makes our prediction from our test_input
-    discriminator = model2([test_input, prediction], training=True)#runs our prediction through the discriminator with the test_input
-    disc_loss = discriminator_loss(tar, tar).numpy()#calculates loss value from discriminator
+    discriminator = model2([tar, prediction], training=True)#runs our prediction through the discriminator with the test_input
+    #disc_loss = discriminator_loss(tar, prediction).numpy()#calculates loss value from discriminator
     d = (prediction[0]-tar[0])**2#calculates square difference between prediction and target
     mse = np.sum(d)/(112**2)#uses square difference to find mean squared error
     plt.figure(figsize=(15,5))#figure size
     display_list = [test_input[0], tar[0], prediction[0]]#the images to be displayed
-    title = ['Input Image', 'Ground Truth', 'Predicted Image, MSE:' + str(mse), 'Discriminator Image:' + str(disc_loss)]#title per subplot
+    title = ['Input Image', 'Ground Truth', 'Predicted Image, MSE:' + str(mse), 'Discriminator Image']#title per subplot
 
     for i in range(3):#creates our subplot
         plt.subplot(1, 4, i+1)
@@ -188,9 +188,9 @@ def generate_images(model1, model2, test_input, tar, number):#will generate our 
     plt.title(title[3])
     plt.imshow(discriminator[0,...,-1], vmin = -20, vmax = 20, cmap = 'RdBu_r')
     plt.colorbar()
-    plt.savefig('testing_attempt' + str(number) + '.png')#saves figure
+    plt.savefig('training_progress_epoch' + str(number) + '.png')#saves figure
 
-@tf.function#function decorator
+@tf.function
 def train_step(input_image, target):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
         gen_output = generator(input_image, training = True)#generates image from input image and trains the generator
@@ -228,6 +228,8 @@ def train(dataset, epochs):#trains on the training dataset for a set number of e
         disc_loss_avg.append(np.average(disc_loss_list))#averages disc loss values per epoch
         if (epoch + 1) % 10 == 0:#saves checkpoints every ten epochs
             checkpoint.save(file_prefix = checkpoint_prefix)
+            for inp, tar in test_dataset.take(1):
+                generate_images(generator, discriminator, inp, tar, epoch+1)
         print('Time taken for epoch {} is {} sec\n' .format(epoch + 1, time.time()-start))#prints time taken per epoch
     return mse_avg, gen_loss_avg, disc_loss_avg
 
@@ -256,8 +258,7 @@ plot()
 
 #checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
 
-#for i in range(1):
+#for i in range(7):
 #    inp = tf.expand_dims(event_test[i],0)
 #    tar = tf.expand_dims(track_test[i],0)
 #    generate_images(generator, discriminator, inp, tar, i)
-#    print(np.sum(np.array(mse_list))/len(mse_list))
