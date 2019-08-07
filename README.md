@@ -44,4 +44,8 @@ This is a step by step walkthrough on how to use the vector and other associated
 # Resources
 This is a place where you can find the websites that are we used to build these scripts and learn how it all works.
 
-1.
+1.https://www.tensorflow.org/beta/tutorials/keras/save_and_restore_models (for saving and restoring model)
+2.https://www.tensorflow.org/beta/tutorials/images/transfer_learning (where we got the information for using the pretrained models)
+3.https://keras.io/applications/ (a list of models that are available to test except the resnets, we got errors with those)
+4.http://cs231n.stanford.edu/ (this is the website that has good machine learning information for getting started)
+5.http://www.deeplearningbook.org/ (this is a free machine learning book that used in big universities for introducing machine learning)
