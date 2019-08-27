@@ -2,6 +2,27 @@
 ## Classifies image data to detect real and simulated image data
 
 
+# Files associated
+The order of the scripts is as follows:
+  1. numpy_data.py (converts images to numpy arrays)
+  
+  2. data_organizer.py (shuffles data and organizes it into testing and training sets)
+  
+  3. vector.py (runs the data through a pretrained CNN to generate vectors for each image)
+  
+  4. log_reg.py (uses a Logistic Regression algorithm to classify the vectors made by the previous script)
+  
+  5. vector_4.py (this is almost the same as the first vector file with some small modifications)
+  
+  6. vector_4_models file (this is a file that has each model in a sepeate script for easy modifications for each model
+                          ,Implement click in vector.py can solve this but has some problems getting it to work)
+                          
+  
+
+  
+
+
+
   1. *vector_2.py* **(This is a implementation of the regular vector.py file with dfferenet paraemeter.Overall it was fruitless)
   
   2. *vector_3.py* *(This was a scratch made vgg-16 CNN that had up to two maxpooling layers, results proves about the same as*        
