@@ -14,7 +14,7 @@ Track = f.get('extracted')
 Track = np.array(Track)
 
 BUFFER_SIZE = 400
-BATCH_SIZE = 64
+BATCH_SIZE = 32
 
 event, track = utils.shuffle(Event, Track, random_state = 0)#shuffles event and track data in unison
 event = np.float32(event)/255#converts event data to float32
@@ -104,7 +104,7 @@ def Discriminator():#analyzes our images and evaluates how good they are
     down2 = downsample(128, 4)(down1)#downsamples (bs, 28, 28, 128)
     down3 = downsample(256, 4)(down2)#downsamples (bs, 14, 14, 256)
 
-    zero_pad1 = tf.keras.layers.ZeroPadding2D()(down1)#zero pads our most recent layer (bs, 16, 16, 256)
+    zero_pad1 = tf.keras.layers.ZeroPadding2D()(x)#zero pads our most recent layer (bs, 16, 16, 256)
     conv = tf.keras.layers.Conv2D(512,4,strides = 1, kernel_initializer = initializer, use_bias = False)(zero_pad1)#(bs, 12, 12, 512)
 
     batchnorm1 = tf.keras.layers.BatchNormalization()(conv)# does batchnormalization on our most recent layer
@@ -139,18 +139,18 @@ def generator_loss(disc_generated_output, gen_output, target):#calculates our lo
 
     mse = tf.losses.mean_squared_error(target, gen_output)
     #helps our image become structurally similar to our target image
-    total_gen_loss = gan_loss + (LAMBDA * l1_loss) + mse#calculates our total loss
+    total_gen_loss = gan_loss + l1_loss + mse#calculates our total loss
 
     return total_gen_loss
 
-generator_optimizer = tf.keras.optimizers.Adam(2e-5, beta_1 = 0.5, beta_2 = 0.999)#optimizer for generator
+generator_optimizer = tf.keras.optimizers.Adam(2e-4, beta_1 = 0.5, beta_2 = 0.999)#optimizer for generator
 discriminator_optimizer = tf.keras.optimizers.Adam(2e-5, beta_1 = 0.5, beta_2 = 0.999)#optimizer for discriminator
 
 checkpoint_dir = './training_checkpoints'#establishes a checkpoint directory
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")#establishes a prefix for our checkpoints
 checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer, discriminator_optimizer= discriminator_optimizer, generator = generator, discriminator = discriminator)
 #tells us what we want saved in our checkpoints
-EPOCHS = 200# number of epochs
+EPOCHS = 250# number of epochs
 
 def generate_images(model1, model2, test_input, tar, number):#will generate our images from our test set
     # the training=True is intentional here since
@@ -158,12 +158,12 @@ def generate_images(model1, model2, test_input, tar, number):#will generate our 
     # on the test dataset. If we use training=False, we will get
     # the accumulated statistics learned from the training dataset
     # (which we don't want)
-    prediction = model1(test_input, training=True)#makes our pre9780393973693diction from our test_input
-    prediction = tf.where(prediction<=0.5,0.0,prediction)
-    prediction = tf.where(prediction>0.5,1.0,prediction)
+    prediction = model1(test_input, training=True)#makes our prediction from our test_input
+    prediction = tf.where(prediction<=0.95,0.0,prediction)#cleans images and puts pixels at only values of 0 and 1
+    prediction = tf.where(prediction>0.95,1.0,prediction)
     discriminator = model2([tar, prediction], training=True)#runs our prediction through the discriminator with the test_input
     #disc_loss = discriminator_loss(tar, prediction).numpy()#calculates loss value from discriminator
-    mse = np.sum(tf.losses.mean_squared_error(tar, prediction).numpy())/(112**2)
+    mse = np.sum(tf.losses.mean_squared_error(tar, prediction).numpy())/(112**2)#calculates the mean squared error on our image
     plt.figure(figsize=(15,5))#figure size
     display_list = [test_input[0], tar[0], prediction[0]]#the images to be displayed
     title = ['Input Image', 'Ground Truth', 'Predicted Image, MSE:' +  str(mse), 'Discriminator Image']#title per subplot
@@ -180,19 +180,17 @@ def generate_images(model1, model2, test_input, tar, number):#will generate our 
     #plt.subplot(1,5,5)
     #plt.title(title[4])
     #plt.imshow(tf.losses.mean_squared_error(prediction, tar).numpy()[0])
-    plt.savefig('training_epoch' + str(number) + '.png')#saves figure
+    plt.savefig('test' + str(number) + '.png')#saves figure
 
 @tf.function
 def train_step(input_image, target):
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
         gen_output = generator(input_image, training = True)#generates image from input image and trains the generator
-        #print(gen_output.shape)
-        #gen_output = clean_img(gen_output)#cleaned image
-        gen_output1 = tf.where(gen_output<=0.5, 0.0, gen_output)
-        gen_output1 = tf.where(gen_output>0.5, 1.0, gen_output)
-        mse = tf.losses.mean_squared_error(target, gen_output1)#calculates the mean squared error between the real and generated images
+        #gen_output1 = tf.where(gen_output<=0.5, 0.0, gen_output)#cleans images
+        #gen_output1 = tf.where(gen_output>0.5, 1.0, gen_output)
+        mse = tf.losses.mean_squared_error(target, gen_output)#calculates the mean squared error between the real and generated images
         disc_real_output = discriminator([input_image, target], training = True)#runs the discriminator on the real output
-        disc_generated_output = discriminator([gen_output, target], training = True)#runs the discriminator on the generated output
+        disc_generated_output = discriminator([input_image, gen_output], training = True)#runs the discriminator on the generated output
         gen_loss = generator_loss(disc_generated_output, gen_output, target)#calculates loss on the generator from the generated discriminator output, the output of the generator, and the target image
         disc_loss = discriminator_loss(disc_real_output, disc_generated_output)#calculates the discriminator loss using the real image and generated image
     generator_gradients = gen_tape.gradient(gen_loss, generator.trainable_variables)#calculates gradients using the generator loss
@@ -206,6 +204,9 @@ def train(dataset, epochs):#trains on the training dataset for a set number of e
     mse_avg = []#contains average mse values from each epoch
     gen_loss_avg = []#contains average gen loss value from each epoch
     disc_loss_avg = []#average discriminator loss values from each epoch
+    best_mse = 100
+    best_epoch = 0
+    limit = 10
     for epoch in range(epochs):#iterates through epochs
         start = time.time()#times each epoch
         mse_list = []#contains every mse value for every image in an epoch
@@ -220,11 +221,21 @@ def train(dataset, epochs):#trains on the training dataset for a set number of e
         mse_avg.append(np.average(np.concatenate(mse_list)))#averages mse values per epoch
         gen_loss_avg.append(np.average(np.concatenate(gen_loss_list)))#averages gen loss values per epoch
         disc_loss_avg.append(np.average(disc_loss_list))#averages disc loss values per epoch
-        if (epoch + 1) % 10 == 0:#saves checkpoints every ten epochs
+        if (epoch + 1) % 5 == 0:#saves checkpoints every ten epochs
             checkpoint.save(file_prefix = checkpoint_prefix)
-            for inp, tar in test_dataset.take():
+            for inp, tar in test_dataset.take(1):
                 generate_images(generator, discriminator, inp, tar, epoch+1)
+        if mse_avg[epoch] < best_mse:
+            best_mse = mse_avg[epoch]
+            best_epoch = epoch+1
+        else:
+            continue
         print('Time taken for epoch {} is {} sec\n' .format(epoch + 1, time.time()-start))#prints time taken per epoch
+        print('Average Generator Loss:' + str(gen_loss_avg[epoch]))
+        print('Average Discriminator Loss:' + str(disc_loss_avg[epoch]))
+        if (epoch+1)-best_epoch >= limit:
+            print("There was no improvement since epoch" + str(best_epoch) + ". Training has been stopped.")
+            break
     return mse_avg, gen_loss_avg, disc_loss_avg
 
 def plot():
@@ -253,12 +264,13 @@ def plot():
 
     plt.savefig("Pix2Pix_metrics")#saves figure
 
-plot()
+#plot()
 #train(train_dataset, EPOCHS)#trains Pix2Pix
 #
-#checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
+#checkpoint.restore('./training_checkpoints/ckpt-20')
 
-#for i in range(7):
-#    inp = tf.expand_dims(event_test[i],0)
-#    tar = tf.expand_dims(track_test[i],0)
-#    generate_images(generator, discriminator, inp, tar, i)
+for i in range(20):
+    inp = tf.expand_dims(event_test[i],0)
+    tar = tf.expand_dims(track_test[i],0)
+    generate_images(generator, discriminator, inp, tar, i)
