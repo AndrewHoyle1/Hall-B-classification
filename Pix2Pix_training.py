@@ -221,7 +221,6 @@ def val_test(input_image, target, epoch):
 def fit(train_dataset, val_dataset, test_dataset, epochs):#trains on the training dataset for a set number of epochs
     best_epoch = 0
     best_loss = 10000
-    current_loss = 0
     limit = 25
     for epoch in range(epochs):
         start = time.time()
@@ -243,8 +242,8 @@ def fit(train_dataset, val_dataset, test_dataset, epochs):#trains on the trainin
             gen_loss,disc_loss = train_step(input_image,target, epoch)
             gen_loss = gen_loss.numpy()
             disc_loss = disc_loss.numpy()
-            gen_loss_list.append(gen_loss_list)
-            disc_loss.append(disc_loss_list)
+            gen_loss_list.append(gen_loss)
+            disc_loss_list.append(disc_loss)
         print()
 
         for n, (input_image, target) in val_dataset.enumerate():
@@ -254,8 +253,8 @@ def fit(train_dataset, val_dataset, test_dataset, epochs):#trains on the trainin
             gen_loss,disc_loss = val_test(input_image, target, epoch)
             gen_loss = gen_loss.numpy()
             disc_loss = disc_loss.numpy()
-            gen_loss_list.append(gen_val_loss_list)
-            disc_loss.append(disc_val_loss_list)
+            gen_val_loss_list.append(gen_loss)
+            disc_val_loss_list.append(disc_loss)
 
         avg_gen_loss = np.average(gen_loss_list)
         avg_val_gen_loss = np.average(gen_val_loss_list)
