@@ -110,11 +110,10 @@ def Discriminator():#analyzes our images and evaluates how good they are
 generator = Generator()
 discriminator = Discriminator()
 
-LAMBDA = 200#lambda value for L1 loss
+LAMBDA = 1e4#lambda value for L1 loss
 
 loss_object = tf.keras.losses.BinaryCrossentropy(from_logits = True)
 mse_loss = tf.keras.losses.MeanSquaredError()
-mae_loss = tf.keras.losses.MeanAbsoluteError()
 
 def discriminator_loss(disc_real_output, disc_generated_output):#calculates our loss function for our discriminator (evaluates how good our image is)
     real_loss = loss_object(tf.ones_like(disc_real_output), disc_real_output)#calculates loss for real image
@@ -129,11 +128,11 @@ def generator_loss(disc_generated_output, gen_output, target):#calculates our lo
     gan_loss = loss_object(tf.ones_like(disc_generated_output), disc_generated_output)#calculates loss for our generated image
     #sigmoid cross entropy between our generated image and an array of ones
     #l1_loss = tf.reduce_mean(tf.abs(target - gen_output))#calculates our L1 loss of mean absolute error
-    mae = mae_loss(target, gen_output)
+    mse = mse_loss(target, gen_output)
     #helps our image become structurally similar to our target image
-    total_gen_loss = gan_loss  + LAMBDA*mae#calculates our total loss
+    total_gen_loss = gan_loss  + LAMBDA*mse#calculates our total loss
 
-    return total_gen_loss, gan_loss, mae
+    return total_gen_loss, gan_loss, mse
 
 def generate_images(model1, model2, test_input, tar, filename):#will generate our images from our test set
     # the training=True is intentional here since
@@ -285,13 +284,9 @@ def final_test():
     for i in range(len(event_test)):
         inp = tf.expand_dims(event_test[i],0)
         tar = tf.expand_dims(track_test[i],0)
-        prediction = generator(inp, training = False)
-        #prediction = tf.where(prediction<=0.75, 0.0, prediction)
-        #prediction = tf.where(prediction>0.75, 1.0, prediction)
-        mae = mse_loss(tar, prediction).numpy()
-        mae *= 128**2
-        mse_list.append(mae)
-        if mae <= 5:
+        mse = generate_images(generator, discriminator, inp, tar, 'test'+ str(i))
+        mse_list.append(mse)
+        if mse <= 5:
             good_images+=1
         else:
             continue
@@ -305,9 +300,9 @@ def MSE_Histogram():
     plt.hist(mse_list, bins = 'auto')
     plt.ylabel('Counts')
     plt.xlabel('Pixel Difference')
-    plt.savefig("MSE_Histogram")
+    plt.savefig("MSE_Histogram_no_rounding")
 
-fit(train_dataset, val_dataset, test_dataset, EPOCHS)
+#fit(train_dataset, val_dataset, test_dataset, EPOCHS)
 
 #final_test()
 
