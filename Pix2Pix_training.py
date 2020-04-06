@@ -7,7 +7,7 @@ from IPython import display
 from data_management import Get_data
 import datetime
 
-event_test, track_test, train_dataset, test_dataset, val_dataset = Get_data()
+event_train, event_test, track_test, train_dataset, test_dataset, val_dataset = Get_data()
 
 OUTPUT_CHANNELS = 3#number of output channels for our images
 
@@ -306,12 +306,31 @@ def MSE_Histogram():
     plt.ylabel('Counts')
     plt.xlabel('Pixel Difference')
     plt.savefig("MSE_Histogram")
+    
+def track_pixel_histogram():
+    diff_list = []
+    zero_array = tf.zeros((128,128,3))
+    
+    for i in range(len(event_train)):
+        img = tf.expand_dims(event_train[i],0)
+        
+        mse = mse_loss(img,zero_array)
+        mse*= 128**2
+        diff_list.append(mse)
+        
+    plt.figure(figsize = (15,15))
+    plt.hist(diff_list, bins = 'auto')
+    plt.ylabel('Counts')
+    plt.xlabel('Pixel Difference')
+    plt.title('Track Pixel Distribution')
+    plt.savefig('Track_pixel_histogram')
+        
 
-fit(train_dataset, val_dataset, test_dataset, EPOCHS)
+#fit(train_dataset, val_dataset, test_dataset, EPOCHS)
 
 #final_test()
 
-MSE_Histogram()
+#MSE_Histogram()
 
 """def plot(train_dataset, val_dataset):
     mse_avg, gen_loss_avg, disc_loss_avg, mse_val_list, gen_loss_val_list, disc_loss_val_list = train(train_dataset, val_dataset, EPOCHS)#takes mse, and loss metrics from the train function
