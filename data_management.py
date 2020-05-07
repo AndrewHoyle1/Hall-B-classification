@@ -3,16 +3,18 @@ import tensorflow as tf
 import numpy as np
 from sklearn import model_selection, utils
 
+print("Imported for data management")
+
 
 def Get_data():
-    f = h5py.File('Pix2Pix_data', 'r')
+    f = h5py.File('Pix2Pix_oneTrack', 'r')
     Event = f.get('all')
     Event = np.array(Event)
-    Track = f.get('extracted')
+    Track = f.get('truth')
     Track = np.array(Track)
 
-    BUFFER_SIZE = 400
-    BATCH_SIZE = 32
+    BUFFER_SIZE = 1000
+    BATCH_SIZE = 256
 
     event, track = utils.shuffle(Event, Track, random_state = 0)#shuffles event and track data in unison
     event = np.float32(event)/255#converts event data to float32
@@ -24,4 +26,4 @@ def Get_data():
     test_dataset = tf.data.Dataset.from_tensor_slices((event_test, track_test)).shuffle(BATCH_SIZE).batch(BATCH_SIZE)#creates tensorflow testing dataset
     val_dataset = tf.data.Dataset.from_tensor_slices((event_val, track_val)).shuffle(BATCH_SIZE).batch(BATCH_SIZE)
 
-    return event_test, track_test, train_dataset, test_dataset, val_dataset
+    return event_train, event_test, track_test, train_dataset, test_dataset, val_dataset

@@ -6,8 +6,13 @@ import time
 from IPython import display
 from data_management import Get_data
 import datetime
+import faulthandler; faulthandler.enable()
+
+print("Imported Packages")
 
 event_train, event_test, track_test, train_dataset, test_dataset, val_dataset = Get_data()
+
+print("Data managed")
 
 OUTPUT_CHANNELS = 3#number of output channels for our images
 
@@ -94,7 +99,7 @@ def Discriminator():#analyzes our images and evaluates how good they are
     down2 = downsample(128, 4)(down1)#downsamples (bs, 28, 28, 128)
     down3 = downsample(256, 4)(down2)#downsamples (bs, 14, 14, 256)
 
-    zero_pad1 = tf.keras.layers.ZeroPadding2D()(down2)#zero pads our most recent layer (bs, 16, 16, 256)
+    zero_pad1 = tf.keras.layers.ZeroPadding2D()(down3)#zero pads our most recent layer (bs, 16, 16, 256)
     conv = tf.keras.layers.Conv2D(512,4,strides = 1, kernel_initializer = initializer, use_bias = False)(zero_pad1)#(bs, 12, 12, 512)
 
     batchnorm1 = tf.keras.layers.BatchNormalization()(conv)# does batchnormalization on our most recent layer
@@ -151,7 +156,7 @@ def generate_images(model1, model2, test_input, tar, filename):#will generate ou
     #mse = np.sqrt(mse)
     plt.figure(figsize=(15,5))#figure size
     display_list = [test_input[0], tar[0], prediction[0]]#the images to be displayed
-    title = ['Input Image', 'Ground Truth', 'Predicted Image, MSD:' +  str(mse), 'Discriminator Image']#title per subplot
+    title = ['Input Image', 'Ground Truth', 'Predicted Image, Pixel Difference:' +  str(mse), 'Discriminator Image']#title per subplot
 
     for i in range(3):#creates our subplot
         plt.subplot(1, 4, i+1)
@@ -171,9 +176,9 @@ def generate_images(model1, model2, test_input, tar, filename):#will generate ou
 generator_optimizer = tf.keras.optimizers.Adam(2e-3, beta_1 = 0.5)#optimizer for generator
 discriminator_optimizer = tf.keras.optimizers.Adam(2e-5, beta_1 = 0.5)#optimizer for discriminator
 
-log_dir = "logs/"
+log_dir = "oneTrackLogs/"
 summary_writer = tf.summary.create_file_writer(log_dir + 'fit/' + datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-checkpoint_dir = './training_checkpoints'#establishes a checkpoint directory
+checkpoint_dir = './training_checkpoints_one_track'#establishes a checkpoint directory
 checkpoint_prefix = os.path.join(checkpoint_dir, "ckpt")#establishes a prefix for our checkpoints
 checkpoint = tf.train.Checkpoint(generator_optimizer = generator_optimizer, discriminator_optimizer= discriminator_optimizer, generator = generator, discriminator = discriminator)
 #tells us what we want saved in our checkpoints
@@ -282,7 +287,9 @@ def final_test():
     checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
     good_images = 0
     mse_list = []
+    time_list = []
     for i in range(len(event_test)):
+        start = time.time()
         inp = tf.expand_dims(event_test[i],0)
         tar = tf.expand_dims(track_test[i],0)
         prediction = generator(inp, training = False)
@@ -291,28 +298,33 @@ def final_test():
         mae = mse_loss(tar, prediction).numpy()
         mae *= 128**2
         mse_list.append(mae)
+        prediction_time = time.time() - start
+        time_list.append(prediction_time)
         if mae <= 5:
             good_images+=1
         else:
             continue
     print("The percentage of good images is " + str(good_images/len(event_test)) + ".")
-    return mse_list
+    return mse_list, time_list
 
 def MSE_Histogram():
-    mse_list = final_test()
+    mse_list, time_list = final_test()
+    
+    print("The Average Time Per Prediction is: "  + str(np.average(time_list)) + " seconds")
 
     plt.figure(figsize = (15,15))
     plt.hist(mse_list, bins = 'auto')
     plt.ylabel('Counts')
     plt.xlabel('Pixel Difference')
-    plt.savefig("MSE_Histogram")
+    plt.title('Generated Images Distribution')
+    plt.savefig("MSE_Histogram_oneTrack")
     
 def track_pixel_histogram():
     diff_list = []
     zero_array = tf.zeros((128,128,3))
     
-    for i in range(len(event_train)):
-        img = tf.expand_dims(event_train[i],0)
+    for i in range(len(event_test)):
+        img = tf.expand_dims(event_test[i],0)
         
         mse = mse_loss(img,zero_array)
         mse*= 128**2
@@ -322,15 +334,15 @@ def track_pixel_histogram():
     plt.hist(diff_list, bins = 'auto')
     plt.ylabel('Counts')
     plt.xlabel('Pixel Difference')
-    plt.title('Track Pixel Distribution')
+    plt.title('Track Pixel Distribution_test_set')
     plt.savefig('Track_pixel_histogram')
         
-
-#fit(train_dataset, val_dataset, test_dataset, EPOCHS)
+#track_pixel_histogram()
+fit(train_dataset, val_dataset, test_dataset, EPOCHS)
 
 #final_test()
 
-#MSE_Histogram()
+MSE_Histogram()
 
 """def plot(train_dataset, val_dataset):
     mse_avg, gen_loss_avg, disc_loss_avg, mse_val_list, gen_loss_val_list, disc_loss_val_list = train(train_dataset, val_dataset, EPOCHS)#takes mse, and loss metrics from the train function
