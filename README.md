@@ -1,8 +1,12 @@
 # Hall-B-classification
-Uses Pix2Pix to take real event data, eliminate noise and generate plausible and realistic track data.
-The first two files process the data. 
 
-The order of the files is as follows:
-  1)Pix2Pix_data.py
-  2)Pix2Pix_training.py
-  3)Pix2Pix_test.py
+This package uses the Pix2Pix GAN architecture to take drift chamber image data and remove unwanted particle tracks and noise. The package consists of three scripts which comprise the data pipeline and training processes. 
+
+The Pix2Pix_data.py script takes in the image data which comes to us as .png files and changes them from their original size of (112,36,3) to a more suitable size of (128,128,3). This is because the architecture works best on square images of resolutions above 120x120. This resizing does not change any properties of the trajectories shown in the images, instead it adds borders where needed (i.e. on the edges of the image and in between the stacked perspectives). These reformatted images are then converted to numpy arrays and packaged into two different h5 datasets in one h5 file. The two h5 datasets are categorized as either being raw image data or ground truth images. Each raw image corresponds to a ground truth image. 
+
+The data_management.py script opens the h5 file created in the previous script and further prepares them for training. This preparation consists of shuffling the image pairs using scikitlearn’s utils.shuffle function. The pixel values are also reduced from a range of 0 to 255 to a range of 0 to 1. Then using scikitlearn’s model_selection.train_test_split function we split the data into datasets which will have different functions. The first split divides the data into training and testing sets. 75% of the data goes to training and the other 25% goes to a testing dataset. The training dataset is once again split 75:25 between a true training dataset and a validation dataset. These two final datasets are what will be used to train the model and check our progress. Next, using a generator for each dataset, we convert the different numpy arrays to tensorflow datasets with batch sizes of 32. 
+
+The Pix2Pix_training.py script takes the tensorflow datasets from the previous script and puts them to use in the training algorithm. The architecture of Pix2Pix consists of two independent networks, a generator and a discriminator. The generator converts random noise vectors to images that it thinks are like the raw image data and the discriminator uses the ground truth to determine how realistic the generated image is. More information on the inner workings of the architecture can be found in this tensorflow tutorial: https://www.tensorflow.org/tutorials/generative/pix2pix
+
+This tutorial also contains a link to a paper which further explains how the architecture works. 
+

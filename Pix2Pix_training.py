@@ -173,7 +173,7 @@ def generate_images(model1, model2, test_input, tar, filename):#will generate ou
     plt.savefig(filename + '.png')#saves figure
     return mse
 
-generator_optimizer = tf.keras.optimizers.Adam(2e-3, beta_1 = 0.5)#optimizer for generator
+generator_optimizer = tf.keras.optimizers.Adam(5e-3, beta_1 = 0.5)#optimizer for generator
 discriminator_optimizer = tf.keras.optimizers.Adam(2e-5, beta_1 = 0.5)#optimizer for discriminator
 
 log_dir = "oneTrackLogs/"
@@ -228,7 +228,7 @@ def val_test(input_image, target, epoch):
 def fit(train_dataset, val_dataset, test_dataset, epochs):#trains on the training dataset for a set number of epochs
     best_epoch = 0
     best_loss = 10000
-    limit = 20
+    limit = 10
     for epoch in range(epochs):
         start = time.time()
 
