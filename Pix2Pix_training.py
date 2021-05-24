@@ -154,7 +154,7 @@ def generate_images(model1, model2, test_input, tar, filename):#will generate ou
     mse = mse_loss(tar, prediction).numpy()#calculates the number of incorrect pixels in our image
     mse *= 128**2
     #mse = np.sqrt(mse)
-    plt.figure(figsize=(15,5))#figure size
+    figure = plt.figure(figsize=(15,5))#figure size
     display_list = [test_input[0], tar[0], prediction[0]]#the images to be displayed
     title = ['Input Image', 'Ground Truth', 'Predicted Image, Pixel Difference:' +  str(mse), 'Discriminator Image']#title per subplot
 
@@ -170,10 +170,16 @@ def generate_images(model1, model2, test_input, tar, filename):#will generate ou
     #plt.subplot(1,5,5)
     #plt.title(title[4])
     #plt.imshow(tf.losses.mean_squared_error(prediction, tar).numpy()[0])
-    plt.savefig(filename + '.png')#saves figure
+    if mse <=10:
+        plt.savefig('final_test_images/below_ten/' + filename + '.png')
+    elif mse > 10 and mse <= 20:
+        plt.savefig('final_test_images/below_twenty/' + filename + '.png')
+    elif mse > 20:
+        plt.savefig('final_test_images/above_twenty/' + filename + '.png')
+    plt.close(figure)
     return mse
 
-generator_optimizer = tf.keras.optimizers.Adam(5e-3, beta_1 = 0.5)#optimizer for generator
+generator_optimizer = tf.keras.optimizers.Adam(1e-3, beta_1 = 0.5)#optimizer for generator
 discriminator_optimizer = tf.keras.optimizers.Adam(2e-5, beta_1 = 0.5)#optimizer for discriminator
 
 log_dir = "oneTrackLogs/"
@@ -186,13 +192,22 @@ EPOCHS = 250# number of epochs
 
 @tf.function
 def train_step(input_image, target, epoch):
+    tf.summary.trace_on(graph=True, profiler = True)
     with tf.GradientTape() as gen_tape, tf.GradientTape() as disc_tape:
         gen_output = generator(input_image, training = True)#generates image from input image and trains the generator
+        with summary_writer.as_default():
+            tf.summary.trace_export(name="generator_trace",
+                                     step = 0,
+                                     profiler_outdir = log_dir)
         #gen_output1 = tf.where(gen_output<=0.5, 0.0, gen_output)#cleans images
         #gen_output1 = tf.where(gen_output>0.5, 1.0, gen_output)
         #mse = mse_loss(target, gen_output)#calculates the mean squared error between the real and generated images
         disc_real_output = discriminator([input_image, target], training = True)#runs the discriminator on the real output
         disc_generated_output = discriminator([input_image, gen_output], training = True)#runs the discriminator on the generated output
+        with summary_writer.as_default():
+            tf.summary.trace_export(name="discriminator_trace",
+                                    step = 0,
+                                    profiler_outdir=log_dir)
         gen_total_loss, gen_gan_loss, gen_mse_loss = generator_loss(disc_generated_output, gen_output, target)#calculates loss on the generator from the generated discriminator output, the output of the generator, and the target image
         disc_loss = discriminator_loss(disc_real_output, disc_generated_output)#calculates the discriminator loss using the real image and generated image
     generator_gradients = gen_tape.gradient(gen_total_loss, generator.trainable_variables)#calculates gradients using the generator loss
@@ -206,7 +221,7 @@ def train_step(input_image, target, epoch):
         tf.summary.scalar('gen_gan_loss', gen_gan_loss, step = epoch)
         tf.summary.scalar('gen_mse_loss', gen_mse_loss, step = epoch)
         tf.summary.scalar('disc_loss', disc_loss, step = epoch)
-    return gen_total_loss, disc_loss
+    return gen_total_loss, disc_loss, gen_mse_loss
 
 def val_test(input_image, target, epoch):
     gen_output = generator(input_image, training = True)#generates image from input image and trains the generator
@@ -234,6 +249,7 @@ def fit(train_dataset, val_dataset, test_dataset, epochs):#trains on the trainin
 
         display.clear_output(wait = True)
         gen_loss_list = []
+        gen_mse_list = []
         gen_val_loss_list = []
         disc_loss_list = []
         disc_val_loss_list = []
@@ -246,11 +262,13 @@ def fit(train_dataset, val_dataset, test_dataset, epochs):#trains on the trainin
             print(".", end = '')
             if (n+1) % 100 == 0:
                 print()
-            gen_loss,disc_loss = train_step(input_image,target, epoch)
+            gen_loss,disc_loss,gen_mse_loss = train_step(input_image,target, epoch)
             gen_loss = gen_loss.numpy()
             disc_loss = disc_loss.numpy()
+            gen_mse_loss = gen_mse_loss.numpy()
             gen_loss_list.append(gen_loss)
             disc_loss_list.append(disc_loss)
+            gen_mse_list.append(gen_mse_loss)
         print()
 
         for n, (input_image, target) in val_dataset.enumerate():
@@ -263,15 +281,16 @@ def fit(train_dataset, val_dataset, test_dataset, epochs):#trains on the trainin
             gen_val_loss_list.append(gen_loss)
             disc_val_loss_list.append(disc_loss)
 
+        avg_mse_loss = np.average(gen_mse_list)
         avg_gen_loss = np.average(gen_loss_list)
         avg_val_gen_loss = np.average(gen_val_loss_list)
         avg_disc_loss = np.average(disc_loss_list)
         avg_val_disc_loss = np.average(disc_val_loss_list)
 
-        if (avg_gen_loss < best_loss):
+        if (avg_mse_loss < best_loss):
             checkpoint.save(file_prefix = checkpoint_prefix + str(epoch+1))
             best_epoch = epoch + 1
-            best_loss = avg_gen_loss
+            best_loss = avg_mse_loss
         elif (epoch + 1 >= best_epoch + limit):
             print("There has been no significant improvement since epoch ", best_epoch, ".")
             break
@@ -282,10 +301,10 @@ def fit(train_dataset, val_dataset, test_dataset, epochs):#trains on the trainin
         print("Avg Discriminator Loss: ", avg_disc_loss)
         print("Avg Validation Generator Loss: ", avg_val_gen_loss)
         print("Avg Validation Discriminator Loss: ", avg_val_disc_loss)
+        print("Avg MAE Loss: ", avg_mse_loss)
 
 def final_test():
     checkpoint.restore(tf.train.latest_checkpoint(checkpoint_dir))
-    good_images = 0
     mse_list = []
     time_list = []
     for i in range(len(event_test)):
@@ -293,56 +312,86 @@ def final_test():
         inp = tf.expand_dims(event_test[i],0)
         tar = tf.expand_dims(track_test[i],0)
         prediction = generator(inp, training = False)
+        prediction_time = time.time() - start
+        mse = mse_loss(prediction,tar) * 128**2
         #prediction = tf.where(prediction<=0.75, 0.0, prediction)
         #prediction = tf.where(prediction>0.75, 1.0, prediction)
-        mae = mse_loss(tar, prediction).numpy()
-        mae *= 128**2
-        mse_list.append(mae)
-        prediction_time = time.time() - start
+        mse_list.append(mse)
+        #mae = generate_images(generator, discriminator, inp, tar, 'test' + str(i))
+        #mse_list.append(mae)
+        
         time_list.append(prediction_time)
-        if mae <= 5:
-            good_images+=1
-        else:
-            continue
-    print("The percentage of good images is " + str(good_images/len(event_test)) + ".")
     return mse_list, time_list
 
 def MSE_Histogram():
+    print("Making Reults Histogram")
     mse_list, time_list = final_test()
     
     print("The Average Time Per Prediction is: "  + str(np.average(time_list)) + " seconds")
 
     plt.figure(figsize = (15,15))
     plt.hist(mse_list, bins = 'auto')
-    plt.ylabel('Counts')
-    plt.xlabel('Pixel Difference')
-    plt.title('Generated Images Distribution')
-    plt.savefig("MSE_Histogram_oneTrack")
+    plt.ylabel('Counts', fontsize = 30)
+    plt.xlabel('Pixel Difference', fontsize = 30)
+    plt.xticks(fontsize = 25)
+    plt.yticks(fontsize = 25)
+    plt.title('Pixel Difference Between Generated Images and Ground Truth', fontsize = 35)
+    plt.savefig("MSE_Percentage_Histogram_oneTrack")
     
 def track_pixel_histogram():
     diff_list = []
-    zero_array = tf.zeros((128,128,3))
     
     for i in range(len(event_test)):
         img = tf.expand_dims(event_test[i],0)
+        tar = tf.expand_dims(track_test[i],0)
         
-        mse = mse_loss(img,zero_array)
+        mse = mse_loss(img,tar)
         mse*= 128**2
         diff_list.append(mse)
         
     plt.figure(figsize = (15,15))
     plt.hist(diff_list, bins = 'auto')
-    plt.ylabel('Counts')
-    plt.xlabel('Pixel Difference')
-    plt.title('Track Pixel Distribution_test_set')
+    plt.ylabel('Counts', fontsize = 30)
+    plt.xlabel('Pixel Difference', fontsize = 30)
+    plt.xticks(fontsize = 25)
+    plt.yticks(fontsize = 25)
+    plt.title('Pixel Difference Between Ground Truth and Input Images', fontsize = 35)
     plt.savefig('Track_pixel_histogram')
+    
+def overlapping_histograms():
+    mse_list, time_list = final_test()
+    diff_list = []
+    
+    for i in range(len(event_test)):
+        img = tf.expand_dims(event_test[i],0)
+        tar = tf.expand_dims(track_test[i],0)
         
-#track_pixel_histogram()
-fit(train_dataset, val_dataset, test_dataset, EPOCHS)
+        mse = mse_loss(img,tar)
+        mse*= 128**2
+        diff_list.append(mse)
+        
+    plt.figure(figsize = (15,15))
+    plt.hist(diff_list, bins = 200, alpha = 0.5, label = 'Ground Truth vs. Input Image', density=True)
+    plt.hist(mse_list, bins = 200, alpha = 0.5, label = 'Test Result vs. Ground Truth', density=True)
+    plt.legend(fontsize = 25)
+    plt.ylabel("Percentage of Dataset", fontsize = 30)
+    #plt.yscale('log', nonposy = 'clip')
+    plt.xlabel("Pixel Difference", fontsize = 30)
+    plt.xticks(fontsize = 25)
+    plt.yticks(fontsize = 25)
+    #y_vals = ax.get_yticks()
+    #plt.set_yticklabels((np.asarray(y_vals)/y_vals.max)*100)
+    plt.title("Test Result Pixel Difference vs. Ground Truth Pixel Difference", fontsize = 30)
+    plt.savefig("Comparison_histogram")
+        
+track_pixel_histogram()
+#fit(train_dataset, val_dataset, test_dataset, EPOCHS)
 
 #final_test()
 
 MSE_Histogram()
+
+overlapping_histograms()
 
 """def plot(train_dataset, val_dataset):
     mse_avg, gen_loss_avg, disc_loss_avg, mse_val_list, gen_loss_val_list, disc_loss_val_list = train(train_dataset, val_dataset, EPOCHS)#takes mse, and loss metrics from the train function
